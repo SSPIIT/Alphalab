@@ -1,0 +1,160 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AlphaLab — docker-compose.yml
+#
+# WHAT THIS FILE DOES:
+#   Defines every service that AlphaLab needs to run.
+#   One command — `docker-compose up` — starts all of them together.
+#
+# SERVICES AT A GLANCE:
+#   postgres    → Database used internally by Airflow to track DAG runs
+#   airflow     → Orchestrator — runs our daily data pipeline on a schedule
+#   mlflow      → Experiment tracker — logs every factor backtest result
+#   prometheus  → Metrics collector — scrapes numbers from FastAPI
+#   grafana     → Dashboard — visualises what Prometheus collected
+#   backend     → FastAPI app — our REST API (built in Week 4)
+#   frontend    → React app — the 4-tab dashboard (built in Week 4)
+#
+# PORTS (what opens in your browser):
+#   Airflow   → http://localhost:8080
+#   MLflow    → http://localhost:5000
+#   Grafana   → http://localhost:3001
+#   Backend   → http://localhost:8000
+#   Frontend  → http://localhost:3000
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── 1. PostgreSQL ─────────────────────────────────────────────────────────
+  # Airflow needs a real database to store DAG run history, task states,
+  # and schedules. We use PostgreSQL (the standard choice).
+  # This is NOT where we store stock data — that goes in data/raw/ as Parquet.
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres_data:/var/lib/postgresql/data   # data survives container restarts
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── 2. Apache Airflow ─────────────────────────────────────────────────────
+  # Airflow is the scheduler. You write a DAG (Directed Acyclic Graph) in
+  # Python that says "every day at 9am, run these tasks in this order."
+  # Airflow makes sure it happens, retries on failure, and shows you a UI.
+  airflow:
+    image: apache/airflow:2.9.1
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CORE__FERNET_KEY: "46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLt0nfdstY="
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"   # hides built-in demo DAGs
+      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "True"
+      _AIRFLOW_DB_MIGRATE: "True"             # auto-creates DB tables on first run
+      _AIRFLOW_WWW_USER_CREATE: "True"
+      _AIRFLOW_WWW_USER_USERNAME: admin
+      _AIRFLOW_WWW_USER_PASSWORD: admin
+    volumes:
+      - ./src/ingestion:/opt/airflow/dags      # our DAG files live here
+      - ./data:/opt/airflow/data               # shared data folder
+    ports:
+      - "8080:8080"
+    command: standalone                        # runs webserver + scheduler together (dev mode)
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ── 3. MLflow ─────────────────────────────────────────────────────────────
+  # MLflow is the experiment tracker. Every time we backtest a factor,
+  # we call mlflow.log_metric("sharpe", 1.4) and it stores that forever.
+  # The UI lets you compare all factors side-by-side — like a leaderboard
+  # for experiments. The model registry stores trained models with versions.
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.13.0
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./models:/mlflow/artifacts              # saved model files
+      - mlflow_data:/mlflow/db                  # experiment metadata
+    command: >
+      mlflow server
+      --backend-store-uri sqlite:////mlflow/db/mlflow.db
+      --default-artifact-root /mlflow/artifacts
+      --host 0.0.0.0
+      --port 5000
+
+  # ── 4. Prometheus ─────────────────────────────────────────────────────────
+  # Prometheus is a metrics collector. Every 15 seconds it visits
+  # http://backend:8000/metrics and reads numbers like:
+  #   - how many API requests per second
+  #   - average response time
+  #   - how much our factor scores have drifted from yesterday
+  # It stores these as time-series data so we can plot them over time.
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml  # tells it where to scrape
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=7d"               # keep 7 days of metrics
+
+  # ── 5. Grafana ────────────────────────────────────────────────────────────
+  # Grafana reads from Prometheus and draws the graphs.
+  # You'll build panels showing: API latency over time, factor score drift,
+  # pipeline success rate, error rate alerts.
+  grafana:
+    image: grafana/grafana:10.4.0
+    depends_on:
+      - prometheus
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+
+  # ── 6. Backend (FastAPI) ───────────────────────────────────────────────────
+  # Our Python API. Built in Week 4. Stubbed here so the compose file is complete.
+  # The Dockerfile in src/api/ will be created in Week 4.
+  # COMMENTED OUT until Week 4:
+  # backend:
+  #   build: ./src/api
+  #   ports:
+  #     - "8000:8000"
+  #   volumes:
+  #     - ./data:/app/data
+  #     - ./models:/app/models
+  #   depends_on:
+  #     - mlflow
+
+  # ── 7. Frontend (React) ────────────────────────────────────────────────────
+  # The React dashboard. Built in Week 4.
+  # COMMENTED OUT until Week 4:
+  # frontend:
+  #   build: ./frontend
+  #   ports:
+  #     - "3000:3000"
+  #   depends_on:
+  #     - backend
+
+# ── Named volumes ──────────────────────────────────────────────────────────
+# Docker manages these. Data inside survives `docker-compose down`.
+# Use `docker-compose down -v` to wipe them (careful — deletes all data).
+volumes:
+  postgres_data:
+  mlflow_data:
+  grafana_data:

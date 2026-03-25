@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+.venv/
+
+# Data files — tracked by DVC, not Git
+data/raw/
+data/features/
+models/
+
+# Node / React
+frontend/node_modules/
+frontend/build/
+frontend/.env
+
+# Docker
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# DVC cache (the actual data bytes live here — too large for Git)
+.dvc/cache/
+.dvc/tmp/
