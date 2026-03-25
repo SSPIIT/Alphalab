@@ -1,0 +1,36 @@
+# prometheus.yml
+#
+# This file tells Prometheus WHERE to collect metrics from.
+#
+# HOW IT WORKS:
+#   Prometheus visits each "target" URL every `scrape_interval` seconds.
+#   The target must expose metrics at /metrics in a special text format.
+#   Our FastAPI app (Week 4) will expose this endpoint automatically
+#   using the `prometheus-fastapi-instrumentator` library.
+
+global:
+  scrape_interval: 15s       # check every target every 15 seconds
+  evaluation_interval: 15s   # evaluate alert rules every 15 seconds
+
+scrape_configs:
+
+  # ── Prometheus scrapes itself ──────────────────────────────────────────
+  # Useful for seeing if Prometheus itself is healthy.
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # ── Our FastAPI backend ────────────────────────────────────────────────
+  # When backend is uncommented in Week 4, Prometheus will scrape it here.
+  # The target name "backend" matches the Docker Compose service name —
+  # Docker's internal DNS resolves it automatically.
+  - job_name: "alphalab_backend"
+    static_configs:
+      - targets: ["backend:8000"]
+    metrics_path: /metrics
+
+# ── Alert rules ────────────────────────────────────────────────────────────
+# We'll add these in Week 4:
+#   - Error rate > 5%  → fire alert
+#   - Factor score drift > 2 std devs → fire alert
+#   - Pipeline not run in 25h → fire alert
