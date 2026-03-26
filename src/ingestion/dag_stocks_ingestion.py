@@ -171,58 +171,16 @@ def fetch_stock_data(**context) -> None:
     logger.info(f"Failed stocks ({len(failed_stocks)}): {failed_stocks}")
 
 
+from validation import validate_ohlcv
+
 def validate_data(**context) -> None:
-    """
-    Task 2: Basic sanity checks on the data we just downloaded.
-
-    WHY VALIDATE?
-      yfinance sometimes returns corrupt data, missing columns, or all-zero
-      prices (especially for illiquid stocks). We catch this early rather
-      than letting bad data silently corrupt our factor calculations.
-
-    This is a simple validation — Week 2 Day 3 adds more thorough checks.
-    """
     execution_date = context["ds"]
     file_path = os.path.join(DATA_DIR, f"{execution_date}.parquet")
-
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"Expected file not found: {file_path}")
-
-    df = pd.read_parquet(file_path)
-
-    # ── Check 1: Required columns exist ───────────────────────────────────
-    required_columns = {"Date", "Open", "High", "Low", "Close", "Volume", "ticker"}
-    missing = required_columns - set(df.columns)
-    if missing:
-        raise ValueError(f"Missing columns in data: {missing}")
-
-    # ── Check 2: Not empty ─────────────────────────────────────────────────
-    if df.empty:
-        raise ValueError("Data file is empty")
-
-    # ── Check 3: No all-null Close prices ─────────────────────────────────
-    null_close = df["Close"].isnull().sum()
-    null_pct = null_close / len(df) * 100
-    if null_pct > 10:
-        raise ValueError(f"Too many null Close prices: {null_pct:.1f}%")
-
-    # ── Check 4: Prices are positive ──────────────────────────────────────
-    negative_prices = (df["Close"] < 0).sum()
-    if negative_prices > 0:
-        raise ValueError(f"Found {negative_prices} negative Close prices")
-
-    # ── Check 5: Enough stocks made it through ─────────────────────────────
-    unique_tickers = df["ticker"].nunique()
-    if unique_tickers < 80:   # allow up to 20 failures out of 100
-        raise ValueError(f"Only {unique_tickers} stocks in data — expected 80+")
-
-    logger.info(f"Validation passed:")
-    logger.info(f"  Rows      : {len(df):,}")
-    logger.info(f"  Stocks    : {unique_tickers}")
-    logger.info(f"  Date range: {df['Date'].min()} → {df['Date'].max()}")
-    logger.info(f"  Null Close: {null_pct:.2f}%")
-
-
+    
+    report = validate_ohlcv(file_path)
+    
+    if not report["passed"]:
+        raise ValueError(f"Validation failed: {report['errors']}")
 # ── DAG definition ─────────────────────────────────────────────────────────────
 # This is where we wire everything together.
 # default_args apply to every task unless a task overrides them.
