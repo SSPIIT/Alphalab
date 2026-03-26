@@ -23,6 +23,10 @@ docker-compose up
 # Airflow   → http://localhost:8080   (admin / admin)
 # MLflow    → http://localhost:5000
 # Grafana   → http://localhost:3001   (admin / admin)
+
+# Airflow
+# admin
+# Cu2ce5x5TCnqzEch
 ```
 
 ## Project structure
