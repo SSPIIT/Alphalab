@@ -50,6 +50,7 @@ services:
   # Airflow makes sure it happens, retries on failure, and shows you a UI.
   airflow:
     image: apache/airflow:3.1.8
+    user: "0:0"
     depends_on:
       postgres:
         condition: service_healthy
@@ -70,6 +71,8 @@ services:
       - ./data:/opt/airflow/data               # shared data folder
       - ./requirements.txt:/requirements.txt   # pip installs on startup
       - ./airflow_passwords.json:/opt/airflow/passwords.json
+      - ~/.ssh:/home/airflow/.ssh:ro
+      - ./:/opt/airflow/project  
     ports:
       - "8080:8080"
     command: bash -c "pip install -r /requirements.txt --quiet && airflow standalone"                    # runs webserver + scheduler together (dev mode)
@@ -78,6 +81,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+    
 
   # ── 3. MLflow ─────────────────────────────────────────────────────────────
   # MLflow is the experiment tracker. Every time we backtest a factor,
