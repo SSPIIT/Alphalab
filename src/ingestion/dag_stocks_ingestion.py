@@ -1,28 +1,3 @@
-"""
-dag_stock_ingestion.py
-─────────────────────
-Airflow DAG: downloads daily OHLCV data for NSE stocks and saves as Parquet.
-
-WHAT IS A DAG?
-  DAG = Directed Acyclic Graph. In plain English:
-  - A list of tasks
-  - With a defined order (task B runs after task A)
-  - No loops (acyclic — it never goes backwards)
-
-  Airflow reads this file, registers the DAG, and runs it on the schedule
-  you define. You never call this file with `python` yourself.
-
-HOW AIRFLOW FINDS THIS FILE:
-  Our docker-compose.yml mounts src/ingestion/ to /opt/airflow/dags/ inside
-  the container. Airflow scans that folder every 30 seconds for .py files
-  containing a DAG object.
-
-SCHEDULE:
-  Runs every day at 9:00 AM UTC.
-  `catchup=False` means if the server was off for 3 days, it does NOT try
-  to backfill those 3 missed runs — it just runs once now.
-"""
-
 
 
 import logging
@@ -37,15 +12,7 @@ from airflow.providers.standard.operators.python import PythonOperator
 # import requests
 import time
 
-# ── Logger ────────────────────────────────────────────────────────────────────
-# Always use Python's logging module, never print().
-# Airflow captures log output and shows it in the UI per task run.
 logger = logging.getLogger(__name__)
-
-# ── Stock universe ─────────────────────────────────────────────────────────────
-# 100 NSE stocks across sectors. The ".NS" suffix is how yfinance identifies
-# NSE-listed stocks (as opposed to BSE which uses ".BO").
-# We'll expand this to 200 in Week 3 once the pipeline is stable.
 NSE_STOCKS = [
     # Large cap — Nifty 50 core
     "RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS",
@@ -82,46 +49,13 @@ NSE_STOCKS = [
     # Cement & Materials
     "AMBUJACEM.NS", "ACC.NS", "SHREECEM.NS", "RAMCOCEM.NS", "JKCEMENT.NS",
 ]
-
-# ── Output path ────────────────────────────────────────────────────────────────
-# Inside the Airflow container, /opt/airflow/data/ maps to our local data/ folder
-# (set up in docker-compose.yml volumes).
 DATA_DIR = "/opt/airflow/data/raw"
-
-
-# ── Task functions ─────────────────────────────────────────────────────────────
-# Each function below becomes one task in the DAG.
-# Keep tasks small and focused — one job per task.
-
-# def fetch_stock_data(**context) -> None:
 
 
 
 
 def fetch_stock_data(**context) -> None:
-    """
-    Task 1: Download OHLCV data for all stocks and save as Parquet.
-
-    WHAT IS OHLCV?
-      Open   — price at market open
-      High   — highest price during the day
-      Low    — lowest price during the day
-      Close  — price at market close (this is what most factors use)
-      Volume — number of shares traded
-
-    WHY 2 YEARS OF HISTORY?
-      Factor backtests need enough history to be statistically meaningful.
-      2 years = ~500 trading days per stock — enough for momentum, volatility,
-      and mean reversion factors. We'll extend to 5 years in Week 3.
-
-    ABOUT **context:
-      Airflow passes a context dict to every PythonOperator function.
-      It contains things like the run date, task instance, etc.
-      We use context["ds"] to get the execution date as a string (YYYY-MM-DD).
-    """
-    # import time
-
-# def fetch_stock_data(**context) -> None:
+   
     execution_date = context["ds"]
     logger.info(f"Starting ingestion for execution date: {execution_date}")
 
@@ -181,47 +115,35 @@ def validate_data(**context) -> None:
     
     if not report["passed"]:
         raise ValueError(f"Validation failed: {report['errors']}")
-# ── DAG definition ─────────────────────────────────────────────────────────────
-# This is where we wire everything together.
-# default_args apply to every task unless a task overrides them.
 
 default_args = {
     "owner": "alphalab",
-    "depends_on_past": False,       # don't wait for yesterday's run to succeed
-    "email_on_failure": False,      # no email alerts (we use Prometheus instead)
+    "depends_on_past": False,       
+    "email_on_failure": False,      
     "email_on_retry": False,
-    "retries": 2,                   # retry failed tasks twice before giving up
-    "retry_delay": timedelta(minutes=5),  # wait 5 min between retries
+    "retries": 2,                   
+    "retry_delay": timedelta(minutes=5),  
 }
 
 with DAG(
-    dag_id="stock_ingestion",           # unique name — shows in Airflow UI
+    dag_id="stock_ingestion",        
     description="Daily OHLCV ingestion for NSE stocks via yfinance",
     schedule="0 9 * * 1-5",            # 9:00 AM UTC, Monday–Friday only
-    #          │ │ │ │ └── day of week (1=Mon, 5=Fri)
-    #          │ │ │ └──── month (every month)
-    #          │ │ └────── day of month (every day)
-    #          │ └──────── hour (9 AM UTC)
-    #          └────────── minute (0)
+  
     start_date=datetime(2024, 1, 1),
-    catchup=False,                      # don't backfill missed runs
+    catchup=False,                   
     default_args=default_args,
-    tags=["ingestion", "week2"],        # labels in the Airflow UI
+    tags=["ingestion", "week2"],       
 ) as dag:
-
-    # Task 1: fetch data
+# task 1 
     fetch_task = PythonOperator(
         task_id="fetch_stock_data",
         python_callable=fetch_stock_data,
     )
 
-    # Task 2: validate data
+# task 2 
     validate_task = PythonOperator(
         task_id="validate_data",
         python_callable=validate_data,
     )
-
-    # ── Task ordering ──────────────────────────────────────────────────────
-    # The >> operator means "then". This reads: fetch first, then validate.
-    # Airflow will not run validate_task if fetch_task fails.
     fetch_task >> validate_task
