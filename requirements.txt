@@ -10,6 +10,7 @@ six==1.17.0
 yfinance==0.2.38
 # pandas==2.2.2
 pyarrow==16.0.0
-
+# pytest==8.2.2
 
 # docker exec -it alphalab-airflow-1 cat /opt/airflow/simple_auth_manager_passwords.json.generated
+# PYTHONPATH=. pytest src/tests/test_momentum.py -v

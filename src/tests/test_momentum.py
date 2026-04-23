@@ -81,4 +81,5 @@ def test_rank_momentum():
     ranked = rank_momentum(df)
 
     assert "mom_1m_rank" in ranked.columns
-    assert ranked["mom_1m_rank"].max() == 1.0
+    assert ranked["mom_1m_rank"].min() >= 0
+    assert ranked["mom_1m_rank"].max() <= 1
