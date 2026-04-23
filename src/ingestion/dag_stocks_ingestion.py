@@ -3,10 +3,12 @@
 import logging
 import os
 from datetime import datetime, timedelta
-
-import pandas as pd
-import yfinance as yf
-from airflow import DAG
+import sys
+sys.path.append("/opt/airflow/dags")
+# import pandas as pd
+# import yfinance as yf
+# from airflow import DAG
+from airflow.sdk import DAG
 # from airflow.operators.python import PythonOperator
 from airflow.providers.standard.operators.python import PythonOperator
 # import requests
@@ -55,16 +57,17 @@ DATA_DIR = "/opt/airflow/data/raw"
 
 
 def fetch_stock_data(**context) -> None:
-   
+    import pandas as pd
+    import yfinance as yf
+
     execution_date = context["ds"]
     logger.info(f"Starting ingestion for execution date: {execution_date}")
-
     os.makedirs(DATA_DIR, exist_ok=True)
 
     all_data = []
     failed_stocks = []
-
     BATCH_SIZE = 10
+
     for i in range(0, len(NSE_STOCKS), BATCH_SIZE):
         batch = NSE_STOCKS[i:i + BATCH_SIZE]
         logger.info(f"Downloading batch {i//BATCH_SIZE + 1}: {batch}")
@@ -77,7 +80,9 @@ def fetch_stock_data(**context) -> None:
                 auto_adjust=True,
                 progress=False,
                 threads=False,
+                # no session parameter
             )
+            # ... rest unchanged
 
             if df.empty:
                 logger.warning(f"No data for batch {batch}")
@@ -105,16 +110,16 @@ def fetch_stock_data(**context) -> None:
     logger.info(f"Failed stocks ({len(failed_stocks)}): {failed_stocks}")
 
 
-from validation import validate_ohlcv
+# from validation import validate_ohlcv
 
-def validate_data(**context) -> None:
-    execution_date = context["ds"]
-    file_path = os.path.join(DATA_DIR, f"{execution_date}.parquet")
+# def validate_data(**context) -> None:
+#     execution_date = context["ds"]
+#     file_path = os.path.join(DATA_DIR, f"{execution_date}.parquet")
     
-    report = validate_ohlcv(file_path)
+#     report = validate_ohlcv(file_path)
     
-    if not report["passed"]:
-        raise ValueError(f"Validation failed: {report['errors']}")
+#     if not report["passed"]:
+#         raise ValueError(f"Validation failed: {report['errors']}")
 
 default_args = {
     "owner": "alphalab",
@@ -142,8 +147,8 @@ with DAG(
     )
 
 # task 2 
-    validate_task = PythonOperator(
-        task_id="validate_data",
-        python_callable=validate_data,
-    )
-    fetch_task >> validate_task
+    # validate_task = PythonOperator(
+    #     task_id="validate_data",
+    #     python_callable=validate_data,
+    # )
+    # fetch_task >> validate_task

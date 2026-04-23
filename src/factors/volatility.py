@@ -126,7 +126,7 @@ def _compute_beta(
     Returns NaN if insufficient overlap.
     """
     # Align on common dates
-    aligned = pd.concat([stock_returns, index_returns], axis=1).dropna()
+    aligned = pd.concat([stock_returns, index_returns], axis=1, sort=False).dropna()
     aligned.columns = ["stock", "index"]
 
     if len(aligned) < window // 2:

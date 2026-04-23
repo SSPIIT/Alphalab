@@ -1,19 +1,15 @@
-# Python dependencies for AlphaLab
-#
-# HOW THIS IS USED:
-#   The Airflow container needs yfinance and pandas to run our DAG.
-#   We'll reference this file in the Airflow service in docker-compose.yml
-#   Week 3 onwards adds more libraries as we build more modules.
+iniconfig==2.3.0
+numpy==2.4.3
+packaging==26.0
+pandas==3.0.1
+pluggy==1.6.0
+Pygments==2.19.2
+pytest==9.0.2
+python-dateutil==2.9.0.post0
+six==1.17.0
+yfinance==0.2.38
+# pandas==2.2.2
+pyarrow==16.0.0
 
-# Data ingestion
-yfinance>=0.2.50       # 0.2.50+ has better rate-limit handling and Yahoo API fixes
-pandas==2.2.2
-pyarrow==16.0.0        # required for reading/writing Parquet files
-requests>=2.32.0       # explicit pin — needed for session/User-Agent workaround
-curl_cffi>=0.7.0
-# Week 3 — uncomment when needed
-# mlflow==2.13.0
-# xgboost==2.0.3
-# scikit-learn==1.4.2
-# shap==0.45.0
-# numpy==1.26.4
+
+# docker exec -it alphalab-airflow-1 cat /opt/airflow/simple_auth_manager_passwords.json.generated

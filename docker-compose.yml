@@ -49,7 +49,8 @@ services:
   # Python that says "every day at 9am, run these tasks in this order."
   # Airflow makes sure it happens, retries on failure, and shows you a UI.
   airflow:
-    image: apache/airflow:3.1.8
+    # image: apache/airflow:3.1.8
+    build: ./airflow
     user: "0:0"
     depends_on:
       postgres:
@@ -64,18 +65,19 @@ services:
       _AIRFLOW_WWW_USER_CREATE: "True"
       _AIRFLOW_WWW_USER_USERNAME: admin
       _AIRFLOW_WWW_USER_PASSWORD: admin
-      _PIP_ADDITIONAL_REQUIREMENTS: "yfinance==0.2.38 pyarrow==16.0.0 pandas==2.2.2"
+      # _PIP_ADDITIONAL_REQUIREMENTS: "yfinance==0.2.38 pyarrow==16.0.0 pandas==2.2.2"
       AIRFLOW__SIMPLE_AUTH_MANAGER__PASSWORDS: "admin:admin"
     volumes:
       - ./src/ingestion:/opt/airflow/dags      # our DAG files live here
       - ./data:/opt/airflow/data               # shared data folder
-      - ./requirements.txt:/requirements.txt   # pip installs on startup
+      # - ./requirements.txt:/requirements.txt   # pip installs on startup
       - ./airflow_passwords.json:/opt/airflow/passwords.json
       - ~/.ssh:/home/airflow/.ssh:ro
       - ./:/opt/airflow/project  
     ports:
       - "8080:8080"
-    command: bash -c "pip install -r /requirements.txt --quiet && airflow standalone"                    # runs webserver + scheduler together (dev mode)
+    # command: bash -c "pip install -r /requirements.txt --quiet && airflow standalone"                    # runs webserver + scheduler together (dev mode)
+    command: airflow standalone
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
