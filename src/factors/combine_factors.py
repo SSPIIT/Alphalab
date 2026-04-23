@@ -71,8 +71,8 @@ OUTPUT_PATH = "../../data/features/all_factors.parquet"
 # Composite columns from each factor module
 # Used to compute overall_composite
 COMPOSITE_COLS = {
-    "momentum":       "mom_6m_rank",        # momentum has no explicit composite; use 6M rank
-    "value":          "value_composite",
+    "momentum":       "mom_6m_rank",
+    "value":          "value_composite_rank",   # ✅ FIXED
     "volatility":     "volatility_composite",
     "mean_reversion": "mean_reversion_composite",
 }
@@ -143,7 +143,7 @@ def compute_overall_composite(df: pd.DataFrame) -> pd.DataFrame:
     The weights here are equal. In a production system you'd tune these
     based on backtested IC (Information Coefficient) for each factor.
 
-    overall_composite = mean(mom_6m_rank, value_composite,
+    overall_composite = mean(mom_6m_rank, value_composite_rank,
                              volatility_composite, mean_reversion_composite)
 
     Then re-ranked to a 0–1 percentile for consistency.
@@ -253,7 +253,7 @@ if __name__ == "__main__":
 
     print("\n── Top 10 Stocks by Overall Composite ──")
     display_cols = ["ticker", "overall_composite", "mom_6m_rank",
-                    "value_composite", "volatility_composite", "mean_reversion_composite"]
+                    "value_composite_rank", "volatility_composite", "mean_reversion_composite"]
     available = [c for c in display_cols if c in result.columns]
     print(result[available].head(10).to_string(index=False))
 
