@@ -69,3 +69,8 @@ alphalab/
 - **Week 3** — Backtesting engine, MLflow tracking, factor ranking, ML model
 - **Week 4** — FastAPI, Prometheus, Grafana, React frontend, Docker
 - **Week 5** — Docs, tests, demo polish
+
+
+
+docker-compose build airflow
+docker-compose up -d
