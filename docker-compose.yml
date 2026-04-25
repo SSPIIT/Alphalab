@@ -151,6 +151,12 @@ services:
   #   depends_on:
   #     - mlflow
 
+  backend:
+    build: ./src/api
+    ports: ["8000:8000"]
+    volumes:
+      - ./data:/app/data   # so the container can read your parquet files
+
   # ── 7. Frontend (React) ────────────────────────────────────────────────────
   # The React dashboard. Built in Week 4.
   # COMMENTED OUT until Week 4:
