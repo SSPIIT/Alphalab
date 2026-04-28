@@ -199,7 +199,7 @@ def run_backtest(
     top_pct: float = 0.2,
     bottom_pct: float = 0.2,
     holding_days: int = 21,
-    output_dir: str = "../../data/backtest",
+    output_dir: str = "data/backtest",
 ) -> dict:
     """
     Runs a long/short factor backtest and returns performance metrics.
@@ -499,9 +499,14 @@ def log_to_mlflow(
                     mlflow.log_metric(k, v)
 
             # Artifact: P&L chart
+            # fixed
             chart = result.get("pnl_chart_path")
             if chart and os.path.exists(chart):
-                mlflow.log_artifact(chart)
+                try:
+                    mlflow.log_artifact(chart)
+                except Exception as e:
+                    logger.warning(f"Could not upload artifact: {e}")
+                    # don't let this fail the entire run
 
         logger.info(f"  MLflow run logged for '{factor_col}'")
 
@@ -522,7 +527,7 @@ def run_all_factors(
     top_pct: float = 0.2,
     bottom_pct: float = 0.2,
     holding_days: int = 21,
-    output_dir: str = "../../data/backtest",
+    output_dir: str = "data/backtest",
     mlflow_uri: Optional[str] = None,
 ) -> pd.DataFrame:
     """
@@ -612,9 +617,9 @@ if __name__ == "__main__":
     )
 
     # ── Paths ──────────────────────────────────────────────────────────────
-    RAW_DIR         = "../../data/raw"
-    FEATURES_DIR    = "../../data/features"
-    BACKTEST_DIR    = "../../data/backtest"
+    RAW_DIR         = "data/raw"
+    FEATURES_DIR    = "data/features"
+    BACKTEST_DIR    = "data/backtest"
 
     # Load latest OHLCV
     raw_files = sorted(os.listdir(RAW_DIR))
@@ -657,7 +662,7 @@ if __name__ == "__main__":
 
     # Uncomment to also log to MLflow (Docker service must be running):
     # MLFLOW_URI = "http://localhost:5000"
-    MLFLOW_URI = None
+    MLFLOW_URI = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
 
     summary = run_all_factors(
         all_factors_df=factors_df,

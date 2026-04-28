@@ -1,0 +1,51 @@
+groups:
+  - name: alphalab_api_health
+    rules:
+
+      - alert: HighErrorRate
+        expr: http_requests_total > 100
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High API error rate"
+          description: "Error rate is {{ printf \"%.2f\" $value }}"
+
+      - alert: HighLatencyP95
+        expr: request_latency_seconds > 0.5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High API latency (P95)"
+          description: "Latency is {{ printf \"%.2f\" $value }} seconds"
+
+      - alert: CriticalLatencyP95
+        expr: request_latency_seconds > 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical API latency"
+          description: "Latency is {{ printf \"%.2f\" $value }} seconds"
+
+  - name: alphalab_infrastructure
+    rules:
+
+      - alert: InstanceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Instance down"
+          description: "A target is down"
+
+      - alert: LowDiskSpace
+        expr: node_filesystem_avail_bytes < 1000000000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low disk space"
+          description: "Available disk space is {{ printf \"%.2f\" $value }} bytes"

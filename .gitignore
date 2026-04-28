@@ -27,3 +27,14 @@ frontend/.env
 # DVC cache (the actual data bytes live here — too large for Git)
 .dvc/cache/
 .dvc/tmp/
+
+data/raw/latest.parquet
+data/features/fundamentals_latest.parquet
+
+# DVC pipeline outputs — tracked by DVC, not Git
+# DVC pipeline outputs — tracked by DVC, not Git
+data/backtest/
+data/models/
+data/features/all_factors.parquet
+data/raw/latest.parquet
+data/features/fundamentals_latest.parquet

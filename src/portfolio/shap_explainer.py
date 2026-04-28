@@ -47,12 +47,12 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 # Active factors — must match composite_model.py
-ACTIVE_FACTORS = [
-    "mom_12m_rank",
-    "mom_6m_rank",
-    "dist_from_52w_high_rank",
-    "mom_3m_rank",
-]
+import yaml
+
+with open("params.yaml") as f:
+    params = yaml.safe_load(f)
+
+ACTIVE_FACTORS = params["model"]["active_factors"]
 
 # Human-readable factor labels for explanation sentences
 FACTOR_LABELS = {
@@ -312,7 +312,7 @@ def run(
     model_path: str          = "../../data/models/composite_model.json",
     all_factors_path: str    = "../../data/features/all_factors.parquet",
     scores_path: str         = "../../data/models/composite_scores.parquet",
-    output_dir: str          = "../../data/models",
+    output_dir: str          = "data/models",
     feature_cols: list[str]  = None,
 ) -> pd.DataFrame:
     """

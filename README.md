@@ -74,3 +74,4 @@ alphalab/
 
 docker-compose build airflow
 docker-compose up -d
+docker-compose logs airflow | grep -i "password"

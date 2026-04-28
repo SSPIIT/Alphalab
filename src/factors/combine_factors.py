@@ -49,7 +49,7 @@ import os
 import pandas as pd
 import numpy as np
 from functools import reduce
-
+from datetime import datetime
 logger = logging.getLogger(__name__)
 
 
@@ -60,13 +60,13 @@ logger = logging.getLogger(__name__)
 # Maps factor name → parquet file path
 # Adjust paths to match your project structure
 FACTOR_FILES = {
-    "momentum":       "../../data/features/momentum.parquet",
-    "value":          "../../data/features/value.parquet",
-    "volatility":     "../../data/features/volatility.parquet",
-    "mean_reversion": "../../data/features/mean_reversion.parquet",
+    "momentum":       "data/features/momentum.parquet",
+    "value":          "data/features/value.parquet",
+    "volatility":     "data/features/volatility.parquet",
+    "mean_reversion": "data/features/mean_reversion.parquet",
 }
 
-OUTPUT_PATH = "../../data/features/all_factors.parquet"
+OUTPUT_PATH = "data/features/all_factors.parquet"
 
 # Composite columns from each factor module
 # Used to compute overall_composite
@@ -229,17 +229,30 @@ def run(
     # Merge
     all_factors = merge_factors(factor_dfs)
 
+    
+
+    
+
     # Overall composite
     all_factors = compute_overall_composite(all_factors)
 
     # Sort by overall composite descending (best stocks first)
     all_factors = all_factors.sort_values("overall_composite", ascending=False).reset_index(drop=True)
-
+    all_factors["date"] = pd.Timestamp.today().normalize()
     # Summary
     log_summary(all_factors)
-
+    
     # Save
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    if os.path.exists(output_path):
+        old_df = pd.read_parquet(output_path)
+
+        # Avoid duplicate same-day entries
+        today = pd.Timestamp.today().normalize()
+        old_df = old_df[old_df["date"] != today]
+
+        all_factors = pd.concat([old_df, all_factors], ignore_index=True)
+
     all_factors.to_parquet(output_path, index=False)
     logger.info(f"\nall_factors.parquet saved to {output_path}")
 

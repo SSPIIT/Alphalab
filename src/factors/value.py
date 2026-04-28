@@ -101,7 +101,7 @@ def run(fundamentals_path: str, output_path: str) -> pd.DataFrame:
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
-    features_dir = "../../data/features"
+    features_dir = "data/features"
 
     # find latest fundamentals file
     files = sorted([f for f in os.listdir(features_dir) if "fundamentals" in f])
@@ -112,7 +112,7 @@ if __name__ == "__main__":
 
     result = run(
         fundamentals_path=latest,
-        output_path="../../data/features/value.parquet"
+        output_path="data/features/value.parquet"
     )
 
     print("\n── Top 10 Value Stocks (Cheapest) ──")

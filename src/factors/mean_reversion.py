@@ -372,13 +372,13 @@ def run(raw_data_path: str, output_path: str) -> pd.DataFrame:
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
-    raw_dir = "../../data/raw"
+    raw_dir = "data/raw"
     files = sorted(os.listdir(raw_dir))
     latest = os.path.join(raw_dir, files[-1])
 
     result = run(
         raw_data_path=latest,
-        output_path="../../data/features/mean_reversion.parquet",
+        output_path="data/features/mean_reversion.parquet",
     )
 
     print("\n── Mean Reversion Factor Sample (top 10 oversold) ──")

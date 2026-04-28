@@ -25,11 +25,8 @@ version: "3.9"
 # ─────────────────────────────────────────────────────────────────────────────
 
 services:
-
+  
   # ── 1. PostgreSQL ─────────────────────────────────────────────────────────
-  # Airflow needs a real database to store DAG run history, task states,
-  # and schedules. We use PostgreSQL (the standard choice).
-  # This is NOT where we store stock data — that goes in data/raw/ as Parquet.
   postgres:
     image: postgres:15
     environment:
@@ -37,7 +34,8 @@ services:
       POSTGRES_PASSWORD: airflow
       POSTGRES_DB: airflow
     volumes:
-      - postgres_data:/var/lib/postgresql/data   # data survives container restarts
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql  # creates mlflow db
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "airflow"]
       interval: 10s
@@ -45,11 +43,7 @@ services:
       retries: 5
 
   # ── 2. Apache Airflow ─────────────────────────────────────────────────────
-  # Airflow is the scheduler. You write a DAG (Directed Acyclic Graph) in
-  # Python that says "every day at 9am, run these tasks in this order."
-  # Airflow makes sure it happens, retries on failure, and shows you a UI.
   airflow:
-    # image: apache/airflow:3.1.8
     build: ./airflow
     user: "0:0"
     depends_on:
@@ -65,66 +59,60 @@ services:
       _AIRFLOW_WWW_USER_CREATE: "True"
       _AIRFLOW_WWW_USER_USERNAME: admin
       _AIRFLOW_WWW_USER_PASSWORD: admin
-      # _PIP_ADDITIONAL_REQUIREMENTS: "yfinance==0.2.38 pyarrow==16.0.0 pandas==2.2.2"
       AIRFLOW__SIMPLE_AUTH_MANAGER__PASSWORDS: "admin:admin"
+      MLFLOW_TRACKING_URI: http://mlflow:5000   # ← so Airflow tasks can log to MLflow
     volumes:
-      - ./src/ingestion:/opt/airflow/dags      # our DAG files live here
-      - ./data:/opt/airflow/data               # shared data folder
-      # - ./requirements.txt:/requirements.txt   # pip installs on startup
+      - ./src/ingestion:/opt/airflow/dags
+      - ./data:/opt/airflow/data
       - ./airflow_passwords.json:/opt/airflow/passwords.json
       - ~/.ssh:/home/airflow/.ssh:ro
-      - ./:/opt/airflow/project  
+      - ./:/opt/airflow/project
     ports:
       - "8080:8080"
-    # command: bash -c "pip install -r /requirements.txt --quiet && airflow standalone"                    # runs webserver + scheduler together (dev mode)
     command: airflow standalone
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 5
-    
 
   # ── 3. MLflow ─────────────────────────────────────────────────────────────
-  # MLflow is the experiment tracker. Every time we backtest a factor,
-  # we call mlflow.log_metric("sharpe", 1.4) and it stores that forever.
-  # The UI lets you compare all factors side-by-side — like a leaderboard
-  # for experiments. The model registry stores trained models with versions.
   mlflow:
     image: ghcr.io/mlflow/mlflow:v2.13.0
     ports:
       - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      MLFLOW_BACKEND_STORE_URI: postgresql+psycopg2://airflow:airflow@postgres:5432/mlflow
+      MLFLOW_DEFAULT_ARTIFACT_ROOT: /mlflow/artifacts
     volumes:
-      - ./models:/mlflow/artifacts              # saved model files
-      - mlflow_data:/mlflow/db                  # experiment metadata
-    command: >
+      - mlflow_artifacts:/mlflow/artifacts
+    entrypoint: >
+      bash -c "pip install psycopg2-binary --quiet &&
       mlflow server
-      --backend-store-uri sqlite:////mlflow/db/mlflow.db
+      --backend-store-uri postgresql+psycopg2://airflow:airflow@postgres:5432/mlflow
       --default-artifact-root /mlflow/artifacts
+      --serve-artifacts
+      --artifacts-destination /mlflow/artifacts
       --host 0.0.0.0
-      --port 5000
-
+      --port 5000"
+    # env_file:
+    # - .env
   # ── 4. Prometheus ─────────────────────────────────────────────────────────
-  # Prometheus is a metrics collector. Every 15 seconds it visits
-  # http://backend:8000/metrics and reads numbers like:
-  #   - how many API requests per second
-  #   - average response time
-  #   - how much our factor scores have drifted from yesterday
-  # It stores these as time-series data so we can plot them over time.
   prometheus:
     image: prom/prometheus:v2.51.0
     ports:
       - "9090:9090"
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml  # tells it where to scrape
+    - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    - ./alerts:/etc/prometheus/alerts:ro
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.retention.time=7d"               # keep 7 days of metrics
+      - "--storage.tsdb.retention.time=7d"
 
   # ── 5. Grafana ────────────────────────────────────────────────────────────
-  # Grafana reads from Prometheus and draws the graphs.
-  # You'll build panels showing: API latency over time, factor score drift,
-  # pipeline success rate, error rate alerts.
   grafana:
     image: grafana/grafana:10.4.0
     depends_on:
@@ -137,10 +125,43 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
 
-  # ── 6. Backend (FastAPI) ───────────────────────────────────────────────────
-  # Our Python API. Built in Week 4. Stubbed here so the compose file is complete.
-  # The Dockerfile in src/api/ will be created in Week 4.
-  # COMMENTED OUT until Week 4:
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ADD THIS SERVICE to your existing docker-compose.yml
+# under the `services:` key, alongside prometheus and grafana
+# ─────────────────────────────────────────────────────────────────────────────
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: alphalab-alertmanager
+    restart: unless-stopped
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+      - "--web.listen-address=:9093"
+    # networks:
+    #   - alphalab-network    # use whatever network name your compose already defines
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ALSO update your existing prometheus service volumes block to mount
+# the alerts folder. Add this line under prometheus volumes:
+# ─────────────────────────────────────────────────────────────────────────────
+#
+#   prometheus:
+#     volumes:
+#       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+#       - ./alerts:/etc/prometheus/alerts:ro          ← ADD THIS LINE
+#
+# And make sure prometheus.yml rule_files path matches:
+#   rule_files:
+#     - "alerts/alphalab_alerts.yml"
+# ─────────────────────────────────────────────────────────────────────────────
+
+  # ── 6. Backend (FastAPI) ── uncomment in Week 4 ───────────────────────────
   # backend:
   #   build: ./src/api
   #   ports:
@@ -150,16 +171,10 @@ services:
   #     - ./models:/app/models
   #   depends_on:
   #     - mlflow
+  #   environment:
+  #     MLFLOW_TRACKING_URI: http://mlflow:5000
 
-  backend:
-    build: ./src/api
-    ports: ["8000:8000"]
-    volumes:
-      - ./data:/app/data   # so the container can read your parquet files
-
-  # ── 7. Frontend (React) ────────────────────────────────────────────────────
-  # The React dashboard. Built in Week 4.
-  # COMMENTED OUT until Week 4:
+  # ── 7. Frontend (React) ── uncomment in Week 4 ────────────────────────────
   # frontend:
   #   build: ./frontend
   #   ports:
@@ -168,9 +183,8 @@ services:
   #     - backend
 
 # ── Named volumes ──────────────────────────────────────────────────────────
-# Docker manages these. Data inside survives `docker-compose down`.
-# Use `docker-compose down -v` to wipe them (careful — deletes all data).
+# ✅ Top-level, zero indentation — all named volumes declared here
 volumes:
   postgres_data:
-  mlflow_data:
+  mlflow_artifacts:    # ← added (was missing, causing the validation error)
   grafana_data:

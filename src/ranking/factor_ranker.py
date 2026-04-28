@@ -247,8 +247,8 @@ def get_top_n_factors(ranked_df: pd.DataFrame, n: int = 5) -> pd.DataFrame:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def run(
-    summary_parquet_path: str = "../../data/backtest/factor_backtest_summary.parquet",
-    output_path: str = "../../data/backtest/factor_rankings.parquet",
+    summary_parquet_path: str = "data/backtest/factor_backtest_summary.parquet",
+    output_path: str = "data/backtest/factor_rankings.parquet",
     mlflow_uri: str | None = "http://localhost:5000",
 ) -> pd.DataFrame:
     """
@@ -298,7 +298,7 @@ if __name__ == "__main__":
         datefmt="%H:%M:%S",
     )
 
-    BACKTEST_DIR = "../../data/backtest"
+    BACKTEST_DIR = "data/backtest"
 
     ranked = run(
         summary_parquet_path=os.path.join(BACKTEST_DIR, "factor_backtest_summary.parquet"),

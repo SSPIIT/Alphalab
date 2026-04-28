@@ -403,14 +403,14 @@ def run(
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
-    raw_dir = "../../data/raw"
+    raw_dir = "data/raw"
     files = sorted(os.listdir(raw_dir))
     latest = os.path.join(raw_dir, files[-1])
 
     result = run(
         raw_data_path=latest,
-        output_path="../../data/features/volatility.parquet",
-        index_data_path="../../data/raw/nifty50_index.parquet",
+        output_path="data/features/volatility.parquet",
+        index_data_path="data/raw/nifty50_index.parquet",
     )
 
     print("\n── Volatility Factor Sample (top 10 lowest vol) ──")
