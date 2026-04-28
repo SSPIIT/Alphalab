@@ -113,18 +113,47 @@ services:
       - "--storage.tsdb.retention.time=7d"
 
   # ── 5. Grafana ────────────────────────────────────────────────────────────
+  # grafana:
+  #   image: grafana/grafana:10.4.0
+  #   depends_on:
+  #     - prometheus
+  #   ports:
+  #     - "3001:3000"
+  #   environment:
+  #     GF_SECURITY_ADMIN_PASSWORD: admin
+  #     GF_USERS_ALLOW_SIGN_UP: "false"
+  #   volumes:
+  #     - grafana_data:/var/lib/grafana
+# ─────────────────────────────────────────────────────────────────────────────
+# ADD these two services to your existing docker-compose.yml
+# under the `services:` key
+# ─────────────────────────────────────────────────────────────────────────────
+
   grafana:
-    image: grafana/grafana:10.4.0
-    depends_on:
-      - prometheus
+    image: grafana/grafana:10.4.2
+    container_name: alphalab-grafana
+    restart: unless-stopped
     ports:
-      - "3001:3000"
+      - "3000:3000"
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: admin
-      GF_USERS_ALLOW_SIGN_UP: "false"
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=alphalab123
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/etc/grafana/provisioning/dashboards/alphalab_dashboard.json
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+    depends_on:
+      - prometheus
+    # networks:
+    #   - alphalab-network
 
+# ─────────────────────────────────────────────────────────────────────────────
+# ADD this under the `volumes:` key
+# ─────────────────────────────────────────────────────────────────────────────
+# volumes:
+#   grafana_data:
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ADD THIS SERVICE to your existing docker-compose.yml
@@ -160,7 +189,39 @@ services:
 #   rule_files:
 #     - "alerts/alphalab_alerts.yml"
 # ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+# 1. ADD this service under `services:` in your docker-compose.yml
+# ─────────────────────────────────────────────────────────────────────────────
 
+  api:
+    build:
+      context: .          # Alphalab/ project root
+      dockerfile: Dockerfile
+    container_name: alphalab-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount data directory so updated parquets are picked up without rebuild
+      - ./data:/app/data:ro
+    # networks:
+    #   - alphalab-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2. Your prometheus.yml scrape config is already correct:
+#
+#   - job_name: "alphalab_api"
+#     static_configs:
+#       - targets: ["api:8000"]   ← "api" = container name above, resolves inside Docker network
+#
+#    No change needed there.
+# ─────────────────────────────────────────────────────────────────────────────
   # ── 6. Backend (FastAPI) ── uncomment in Week 4 ───────────────────────────
   # backend:
   #   build: ./src/api
