@@ -86,20 +86,20 @@ stages:
       size: 21992
     - path: src/factors/combine_factors.py
       hash: md5
-      md5: 2ac8b6c20052d5dcce6fb46748bc1291
-      size: 10142
+      md5: 3ae8b82bb37874d46f1c421b3d7ac548
+      size: 10558
     outs:
     - path: data/features/all_factors.parquet
       hash: md5
-      md5: 189ef43404d7c0a660db542087307d80
-      size: 72144
+      md5: fec2bd836161f0117fe349c2158177f0
+      size: 72809
   backtest:
     cmd: python src/backtest/backtester.py
     deps:
     - path: data/features/all_factors.parquet
       hash: md5
-      md5: 189ef43404d7c0a660db542087307d80
-      size: 72144
+      md5: fec2bd836161f0117fe349c2158177f0
+      size: 72809
     - path: data/raw/latest.parquet
       hash: md5
       md5: ae06da745a037bf8bebd3ea2a7b4db86
@@ -139,8 +139,8 @@ stages:
     deps:
     - path: data/features/all_factors.parquet
       hash: md5
-      md5: 189ef43404d7c0a660db542087307d80
-      size: 72144
+      md5: fec2bd836161f0117fe349c2158177f0
+      size: 72809
     - path: data/raw/latest.parquet
       hash: md5
       md5: ae06da745a037bf8bebd3ea2a7b4db86
@@ -177,8 +177,8 @@ stages:
     deps:
     - path: data/features/all_factors.parquet
       hash: md5
-      md5: 189ef43404d7c0a660db542087307d80
-      size: 72144
+      md5: fec2bd836161f0117fe349c2158177f0
+      size: 72809
     - path: data/models/composite_model.json
       hash: md5
       md5: 87110a60bd7ee3366e4560ac32d887ae
