@@ -1,0 +1,39 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# AlphaLab — Pipeline Parameters
+# ─────────────────────────────────────────────────────────────────────────────
+# Tracked by DVC — changing any value here marks downstream stages as
+# out-of-date and triggers a re-run on the next `dvc repro`.
+# ─────────────────────────────────────────────────────────────────────────────
+
+backtest:
+  top_pct: 0.2          # long top 20% of stocks by factor rank
+  bottom_pct: 0.2       # short bottom 20% of stocks by factor rank
+  holding_days: 21      # rebalance every ~21 trading days (monthly)
+
+model:
+  n_estimators: 200
+  max_depth: 4
+  learning_rate: 0.05
+  fwd_window_days: 21
+  active_factors:
+    - mom_1m_rank
+    - mom_3m_rank
+    - mom_6m_rank
+    - mom_12m_rank
+    - value_pe_rank
+    - value_pb_rank
+    - value_ps_rank
+    - value_composite_rank
+    - hist_vol_1m_rank
+    - hist_vol_3m_rank
+    - hist_vol_6m_rank
+    - atr_pct_rank
+    - downside_vol_6m_rank
+    - max_drawdown_6m_rank
+    - rsi_14_rank
+    - zscore_20d_rank
+    - zscore_60d_rank
+    - bb_pct_b_rank
+    - short_term_reversal_rank
+    - dist_from_52w_high_rank
+    - dist_from_52w_low_rank

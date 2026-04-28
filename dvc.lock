@@ -1,0 +1,202 @@
+schema: '2.0'
+stages:
+  momentum:
+    cmd: python src/factors/momentum.py
+    deps:
+    - path: data/raw/latest.parquet
+      hash: md5
+      md5: ae06da745a037bf8bebd3ea2a7b4db86
+      size: 2101835
+    - path: src/factors/momentum.py
+      hash: md5
+      md5: 46613967d0f5a0c57897c3af44b0e57b
+      size: 3345
+  link_latest:
+    cmd: python src/ingestion/link_latest.py
+    deps:
+    - path: src/ingestion/link_latest.py
+      hash: md5
+      md5: 754ea58e22f569ab36a45a2d7d1d3108
+      size: 547
+    outs:
+    - path: data/features/fundamentals_latest.parquet
+      hash: md5
+      md5: 4cf19661be665ddda6f9acc650e5ea1e
+      size: 9224
+    - path: data/raw/latest.parquet
+      hash: md5
+      md5: ae06da745a037bf8bebd3ea2a7b4db86
+      size: 2101835
+  value:
+    cmd: python src/factors/value.py
+    deps:
+    - path: data/features/fundamentals_latest.parquet
+      hash: md5
+      md5: 4cf19661be665ddda6f9acc650e5ea1e
+      size: 9224
+    - path: src/factors/value.py
+      hash: md5
+      md5: d998efea610b342df4c2abe663f71fac
+      size: 5130
+    outs:
+    - path: data/features/value.parquet
+      hash: md5
+      md5: fe11d1516c38625d7bfffc467f902022
+      size: 17950
+  volatility:
+    cmd: python src/factors/volatility.py
+    deps:
+    - path: data/raw/latest.parquet
+      hash: md5
+      md5: ae06da745a037bf8bebd3ea2a7b4db86
+      size: 2101835
+    - path: src/factors/volatility.py
+      hash: md5
+      md5: 33d381f553d5d3ef0efe84f88ee984b4
+      size: 17224
+  mean_reversion:
+    cmd: python src/factors/mean_reversion.py
+    deps:
+    - path: data/raw/latest.parquet
+      hash: md5
+      md5: ae06da745a037bf8bebd3ea2a7b4db86
+      size: 2101835
+    - path: src/factors/mean_reversion.py
+      hash: md5
+      md5: e2db873efe4cab0e12f5f80325b014f9
+      size: 15928
+  combine_factors:
+    cmd: python src/factors/combine_factors.py
+    deps:
+    - path: data/features/mean_reversion.parquet
+      hash: md5
+      md5: 4ceef63f331fde8082cd4ba56abe61d6
+      size: 23887
+    - path: data/features/momentum.parquet
+      hash: md5
+      md5: e401e4bfd41ade16e28c3ede4c7fd445
+      size: 13068
+    - path: data/features/value.parquet
+      hash: md5
+      md5: fe11d1516c38625d7bfffc467f902022
+      size: 17950
+    - path: data/features/volatility.parquet
+      hash: md5
+      md5: d428c25e099cd71249dfed0d43882fe6
+      size: 21992
+    - path: src/factors/combine_factors.py
+      hash: md5
+      md5: 2ac8b6c20052d5dcce6fb46748bc1291
+      size: 10142
+    outs:
+    - path: data/features/all_factors.parquet
+      hash: md5
+      md5: 189ef43404d7c0a660db542087307d80
+      size: 72144
+  backtest:
+    cmd: python src/backtest/backtester.py
+    deps:
+    - path: data/features/all_factors.parquet
+      hash: md5
+      md5: 189ef43404d7c0a660db542087307d80
+      size: 72144
+    - path: data/raw/latest.parquet
+      hash: md5
+      md5: ae06da745a037bf8bebd3ea2a7b4db86
+      size: 2101835
+    - path: src/backtest/backtester.py
+      hash: md5
+      md5: cb4519b8292c4462237777afe7c0c334
+      size: 29466
+    params:
+      params.yaml:
+        backtest.bottom_pct: 0.2
+        backtest.holding_days: 21
+        backtest.top_pct: 0.2
+    outs:
+    - path: data/backtest/factor_backtest_summary.parquet
+      hash: md5
+      md5: 79d8db5dec8253f145ada1e19248f6a1
+      size: 7768
+  rank_factors:
+    cmd: python src/ranking/factor_ranker.py
+    deps:
+    - path: data/backtest/factor_backtest_summary.parquet
+      hash: md5
+      md5: 79d8db5dec8253f145ada1e19248f6a1
+      size: 7768
+    - path: src/ranking/factor_ranker.py
+      hash: md5
+      md5: 29bbc3795b01b2123c45ac334032a74f
+      size: 14631
+    outs:
+    - path: data/backtest/factor_rankings.parquet
+      hash: md5
+      md5: c669a4d22ddfbe63df6155b52270edc7
+      size: 10596
+  composite_model:
+    cmd: python src/models/composite_model.py
+    deps:
+    - path: data/features/all_factors.parquet
+      hash: md5
+      md5: 189ef43404d7c0a660db542087307d80
+      size: 72144
+    - path: data/raw/latest.parquet
+      hash: md5
+      md5: ae06da745a037bf8bebd3ea2a7b4db86
+      size: 2101835
+    - path: src/models/composite_model.py
+      hash: md5
+      md5: 4ce160e53148ce9b6a2d0900d11d493d
+      size: 20012
+    params:
+      params.yaml:
+        model.fwd_window_days: 21
+        model.learning_rate: 0.05
+        model.max_depth: 4
+        model.n_estimators: 200
+    outs:
+    - path: data/models/composite_model.json
+      hash: md5
+      md5: 87110a60bd7ee3366e4560ac32d887ae
+      size: 347559
+    - path: data/models/composite_scores.parquet
+      hash: md5
+      md5: 0c845792d781a3e81800094764c759b0
+      size: 6679
+    - path: data/models/feature_importance.parquet
+      hash: md5
+      md5: fcf214e520d99b769e770f8842371ed6
+      size: 2237
+    - path: data/models/predictions.parquet
+      hash: md5
+      md5: 2ea318767bfa23e8efd2591a16f267e8
+      size: 101781
+  shap_explainer:
+    cmd: python src/portfolio/shap_explainer.py
+    deps:
+    - path: data/features/all_factors.parquet
+      hash: md5
+      md5: 189ef43404d7c0a660db542087307d80
+      size: 72144
+    - path: data/models/composite_model.json
+      hash: md5
+      md5: 87110a60bd7ee3366e4560ac32d887ae
+      size: 347559
+    - path: src/portfolio/shap_explainer.py
+      hash: md5
+      md5: 5f8beaa9d943bf51223596f4f017cf3b
+      size: 17874
+    outs:
+    - path: data/models/shap_base_value.json
+      hash: md5
+      md5: dabf5b297508f379731f54151955d6fe
+      size: 36
+    - path: data/models/shap_explanations.parquet
+      hash: md5
+      md5: 5ad6be4aaddb2eb4585fa6ab5589cbca
+      size: 23442
+    - path: data/models/shap_global_summary.parquet
+      hash: md5
+      md5: 6156227e08db83a87e5dc2549ebebb81
+      size: 2990

@@ -1,0 +1,96 @@
+stages:
+  link_latest:
+    cmd: python src/ingestion/link_latest.py
+    deps:
+      - src/ingestion/link_latest.py
+    outs:
+      - data/raw/latest.parquet
+      - data/features/fundamentals_latest.parquet
+
+  momentum:
+    cmd: python src/factors/momentum.py
+    deps:
+      - src/factors/momentum.py
+      - data/raw/latest.parquet
+
+  value:
+    cmd: python src/factors/value.py
+    deps:
+      - src/factors/value.py
+      - data/features/fundamentals_latest.parquet
+    outs:
+      - data/features/value.parquet
+
+  volatility:
+    cmd: python src/factors/volatility.py
+    deps:
+      - src/factors/volatility.py
+      - data/raw/latest.parquet
+
+  mean_reversion:
+    cmd: python src/factors/mean_reversion.py
+    deps:
+      - src/factors/mean_reversion.py
+      - data/raw/latest.parquet
+
+  combine_factors:
+    cmd: python src/factors/combine_factors.py
+    deps:
+      - src/factors/combine_factors.py
+      - data/features/momentum.parquet
+      - data/features/value.parquet
+      - data/features/volatility.parquet
+      - data/features/mean_reversion.parquet
+    outs:
+      - data/features/all_factors.parquet
+
+  backtest:
+    cmd: python src/backtest/backtester.py
+    deps:
+      - src/backtest/backtester.py
+      - data/features/all_factors.parquet
+      - data/raw/latest.parquet
+    outs:
+      - data/backtest/factor_backtest_summary.parquet
+    params:
+      - params.yaml:
+          - backtest.top_pct
+          - backtest.bottom_pct
+          - backtest.holding_days
+
+  rank_factors:
+    cmd: python src/ranking/factor_ranker.py
+    deps:
+      - src/ranking/factor_ranker.py
+      - data/backtest/factor_backtest_summary.parquet
+    outs:
+      - data/backtest/factor_rankings.parquet
+
+  composite_model:
+    cmd: python src/models/composite_model.py
+    deps:
+      - src/models/composite_model.py
+      - data/features/all_factors.parquet
+      - data/raw/latest.parquet
+    outs:
+      - data/models/composite_model.json
+      - data/models/composite_scores.parquet
+      - data/models/predictions.parquet
+      - data/models/feature_importance.parquet
+    params:
+      - params.yaml:
+          - model.n_estimators
+          - model.max_depth
+          - model.learning_rate
+          - model.fwd_window_days
+
+  shap_explainer:
+    cmd: python src/portfolio/shap_explainer.py
+    deps:
+      - src/portfolio/shap_explainer.py
+      - data/models/composite_model.json
+      - data/features/all_factors.parquet
+    outs:
+      - data/models/shap_explanations.parquet
+      - data/models/shap_global_summary.parquet
+      - data/models/shap_base_value.json
