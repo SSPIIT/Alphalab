@@ -139,6 +139,9 @@ docker compose build api
 
 # Start all services
 docker compose up -d
+
+# Get Airflow admin password
+docker compose logs airflow | grep -i password
 ```
 
 This starts:

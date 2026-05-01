@@ -36,9 +36,6 @@ NSE_STOCKS = [
 
 DATA_DIR = "/opt/airflow/data/raw"
 
-# ─────────────────────────────────────────
-# FETCH (UNCHANGED ✅)
-# ─────────────────────────────────────────
 def fetch_stock_data(**context) -> None:
     import pandas as pd
     import yfinance as yf
@@ -137,9 +134,7 @@ def fetch_fundamentals(**context):
     fundamentals_df.to_parquet(out_path, index=False)
 
     logger.info(f"Fundamentals saved to {out_path}")
-# ─────────────────────────────────────────
-# VALIDATION LOGIC ✅
-# ─────────────────────────────────────────
+
 def validate_ohlcv(file_path: str) -> dict:
     import pandas as pd
 
@@ -172,9 +167,7 @@ def validate_ohlcv(file_path: str) -> dict:
     return report
 
 
-# ─────────────────────────────────────────
-# VALIDATION TASK (AIRFLOW)
-# ─────────────────────────────────────────
+
 def validate_data(**context):
     execution_date = context["ds"]
     file_path = os.path.join(DATA_DIR, f"{execution_date}.parquet")
@@ -188,10 +181,6 @@ def validate_data(**context):
 
     logger.info("Validation passed")
 
-
-# ─────────────────────────────────────────
-# DAG
-# ─────────────────────────────────────────
 default_args = {
     "owner": "alphalab",
     "depends_on_past": False,
@@ -226,6 +215,4 @@ with DAG(
         python_callable=validate_data,
     )
 
-    # pipeline
-    # fetch_task >> validate_task
     fetch_task >> fundamentals_task >> validate_task
